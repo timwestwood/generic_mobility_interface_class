@@ -165,12 +165,7 @@ quaternion& quaternion::operator -=(const quaternion& q){
 
   void quaternion::normalise_in_place(){
 
-    const double norm = this->norm();
-
-    scalar_part /= norm;
-    vector_part[0] /= norm;
-    vector_part[1] /= norm;
-    vector_part[2] /= norm;
+    (*this) /= this->norm();
 
   }
 
@@ -405,14 +400,14 @@ quaternion& quaternion::operator -=(const quaternion& q){
 
   quaternion operator /(quaternion q, const double s){
 
-    q *= s;
+    q /= s;
     return q;
 
   }
 
   quaternion operator *(quaternion q, const double s){
 
-    q /= s;
+    q *= s;
     return q;
 
   }
