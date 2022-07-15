@@ -1,4 +1,4 @@
-CILIA_CPP = cilia_sim_main.cpp matrix.cpp quaternion.cpp segment.cpp filament.cpp broyden_solver.cpp rigid_body.cpp swimmer.cpp
+CILIA_CPP = cilia_sim_main.cpp matrix.cpp quaternion.cpp segment.cpp filament.cpp broyden_solver.cpp rigid_body.cpp swimmer.cpp mobility_solver.cpp
 CILIA_CUDA = cuda_functions.cu rpy_mobility_solver.cu seeding.cu
 
 FLOW_FIELD_CPP = flow_field_main.cpp matrix.cpp quaternion.cpp
@@ -53,7 +53,7 @@ flow_field_ic_hpc:
 #
 # The following work on my personal PC. Compiling CUDA on Windows requires using the Microsoft
 # Visual C++ compiler cl.exe and as such the paths etc. follow the Windows, rather than unix, format.
-# blas_win64_MT.dll and lapack_win64_MT.dll have been copied from the Armadillo source into Cygwin's /bin/
+# blas_win64_MT.dll and lapack_win64_MT.dll have been copied into Cygwin's /bin/
 #
 
 debug_cilia_pc:

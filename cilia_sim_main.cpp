@@ -109,6 +109,8 @@ int main(int argc, char** argv){
   // Initialise the simulation
   rpy_mobility_solver mobility;
 
+  mobility.initialise();
+
   #if !(PRESCRIBED_CILIA || NO_CILIA_SQUIRMER)
 
     broyden_solver broyden;
@@ -179,8 +181,6 @@ int main(int argc, char** argv){
   #else
 
     const int nt_start = 0;
-
-    //swimmers[0].filaments[1].phase = 0.5*PI;
 
   #endif
 
@@ -387,6 +387,8 @@ int main(int argc, char** argv){
     }
 
   }
+
+  mobility.finalise();
 
   #if WRITE_GENERALISED_FORCES
 

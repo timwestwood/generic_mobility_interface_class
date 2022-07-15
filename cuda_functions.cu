@@ -5,422 +5,424 @@
 
 #if INFINITE_PLANE_WALL
 
-__global__ void Mss_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
+  __global__ void Mss_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
 
-  // Calculates the velocities of filament segments, given the forces and torques
-  // on the segments, in a domain bounded by an infinite no-slip wall at z = 0.
-  // It does so using the expressions given by Swan and Brady (2007).
-  // NOTE: There seems to be a typo/sign error/unusual convention in the alternating
-  // tensors that appear in the appendices of Swan and Brady's work. To get the correct
-  // behaviour, it suffices to change the sign of all rot-trans (and hence trans-rot) terms.
-  // This is highlighted in the code by evaluating these terms as they appear in the paper
-  // but using -= rather than += to evaluate their contributions (except for the self-mobility
-  // corrections, which are given on one line and have the signs changed in the expression itself).
+    // Calculates the velocities of filament segments, given the forces and torques
+    // on the segments, in a domain bounded by an infinite no-slip wall at z = 0.
+    // It does so using the expressions given by Swan and Brady (2007).
+    // NOTE: There seems to be a typo/sign error/unusual convention in the alternating
+    // tensors that appear in the appendices of Swan and Brady's work. To get the correct
+    // behaviour, it suffices to change the sign of all rot-trans (and hence trans-rot) terms.
+    // This is highlighted in the code by evaluating these terms as they appear in the paper
+    // but using -= rather than += to evaluate their contributions (except for the self-mobility
+    // corrections, which are given on one line and have the signs changed in the expression itself).
 
-  // N.B. This function assumes that RSEG = MU = 1!
+    // N.B. This function assumes that RSEG = MU = 1!
 
-  const double ForceFactor = 0.053051647697298; // = 1/(6*PI)
-  const double TorqueFactor = 0.039788735772974; // = 1/(8*PI)
+    const double ForceFactor = 0.053051647697298; // = 1/(6*PI)
+    const double TorqueFactor = 0.039788735772974; // = 1/(8*PI)
 
-  const int index = threadIdx.x + blockIdx.x*blockDim.x;
-  const int stride = blockDim.x*gridDim.x;
+    const int index = threadIdx.x + blockIdx.x*blockDim.x;
+    const int stride = blockDim.x*gridDim.x;
 
-  // Declare the shared memory for this thread block
-  __shared__ double x_shared[THREADS_PER_BLOCK];
-  __shared__ double y_shared[THREADS_PER_BLOCK];
-  __shared__ double z_shared[THREADS_PER_BLOCK];
-  __shared__ double fx_shared[THREADS_PER_BLOCK];
-  __shared__ double fy_shared[THREADS_PER_BLOCK];
-  __shared__ double fz_shared[THREADS_PER_BLOCK];
-  __shared__ double taux_shared[THREADS_PER_BLOCK];
-  __shared__ double tauy_shared[THREADS_PER_BLOCK];
-  __shared__ double tauz_shared[THREADS_PER_BLOCK];
+    // Declare the shared memory for this thread block
+    __shared__ double x_shared[THREADS_PER_BLOCK];
+    __shared__ double y_shared[THREADS_PER_BLOCK];
+    __shared__ double z_shared[THREADS_PER_BLOCK];
+    __shared__ double fx_shared[THREADS_PER_BLOCK];
+    __shared__ double fy_shared[THREADS_PER_BLOCK];
+    __shared__ double fz_shared[THREADS_PER_BLOCK];
+    __shared__ double taux_shared[THREADS_PER_BLOCK];
+    __shared__ double tauy_shared[THREADS_PER_BLOCK];
+    __shared__ double tauz_shared[THREADS_PER_BLOCK];
 
-  double vx, vy, vz, wx, wy, wz;
-  double xi, yi, zi;
+    double vx, vy, vz, wx, wy, wz;
+    double xi, yi, zi;
 
-  // Stay in the loop as long as any thread in the block still needs to compute velocities.
-  for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
-
-    if (i < (start_seg + num_segs)){
-
-      vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
-      xi = X[3*i]; yi = X[3*i + 1]; zi = X[3*i + 2];
-
-    }
-
-    for (int j_start = 0; j_start < NFIL*NSEG; j_start += THREADS_PER_BLOCK){
-
-      const int j_to_read = j_start + threadIdx.x;
-
-      if (j_to_read < NFIL*NSEG){
-
-        x_shared[threadIdx.x] = X[3*j_to_read];
-        y_shared[threadIdx.x] = X[3*j_to_read + 1];
-        z_shared[threadIdx.x] = X[3*j_to_read + 2];
-        fx_shared[threadIdx.x] = F[6*j_to_read];
-        fy_shared[threadIdx.x] = F[6*j_to_read + 1];
-        fz_shared[threadIdx.x] = F[6*j_to_read + 2];
-        taux_shared[threadIdx.x] = F[6*j_to_read + 3];
-        tauy_shared[threadIdx.x] = F[6*j_to_read + 4];
-        tauz_shared[threadIdx.x] = F[6*j_to_read + 5];
-
-      }
-
-      __syncthreads();
+    // Stay in the loop as long as any thread in the block still needs to compute velocities.
+    for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
 
       if (i < (start_seg + num_segs)){
 
-        for (int j=0; (j < THREADS_PER_BLOCK) && (j_start + j < NFIL*NSEG); j++){
-
-          if (i == (j + j_start)){
-
-            // Self-mobility
-            const double hm1 = 1.0/zi;
-            const double hm3 = hm1*hm1*hm1;
-            const double hm4 = hm3*hm1;
-            const double hm5 = hm4*hm1;
-
-            double a0 = ForceFactor - (9.0*hm1 - 2.0*hm3 + hm5)*0.003315727981081; // 0.003315727981081 = 1/(6*PI*16)
-            double a1 = ForceFactor - (9.0*hm1 - 4.0*hm3 + hm5)*0.006631455962162; // 0.006631455962162 = 1/(6*PI*8)
-
-            #if PRESCRIBED_CILIA
-
-              vx += a0*fx_shared[j];
-              vy += a0*fy_shared[j];
-              vz += a1*fz_shared[j];
-
-            #else
-
-              const double a2 = 0.004973591971622*hm4; // 0.004973591971622 = 3/(6*PI*32)
-
-              vx += a0*fx_shared[j] + a2*tauy_shared[j];
-              vy += a0*fy_shared[j] - a2*taux_shared[j];
-              vz += a1*fz_shared[j];
-
-              a0 = TorqueFactor - 0.012433979929054*hm3; // 0.012433979929054 = 15/(6*PI*64)
-              a1 = TorqueFactor - 0.004973591971622*hm3; // 0.004973591971622 = 3/(6*PI*32)
-
-              wx += a0*taux_shared[j] - a2*fy_shared[j];
-              wy += a0*tauy_shared[j] + a2*fx_shared[j];
-              wz += a1*tauz_shared[j];
-
-            #endif
-
-          } else {
-
-            double rm1 = 1.0/sqrt((xi - x_shared[j])*(xi - x_shared[j]) + (yi - y_shared[j])*(yi - y_shared[j]) + (zi - z_shared[j])*(zi - z_shared[j]));
-
-            // Begin with the unbounded terms
-            double rhatx = (xi - x_shared[j])*rm1;
-            double rhaty = (yi - y_shared[j])*rm1;
-            double rhatz = (zi - z_shared[j])*rm1;
-            double rhat_dot_force = rhatx*fx_shared[j] + rhaty*fy_shared[j] + rhatz*fz_shared[j];
-            double rhat_dot_torque = rhatx*taux_shared[j] + rhaty*tauy_shared[j] + rhatz*tauz_shared[j];
-
-            double a0 = 0.039788735772974*rm1; // 0.039788735772974 = 1/(8*PI)
-            double a1 = 1.0 + 0.666666666666667*rm1*rm1;
-            double a2 = 1.0 - 2.0*rm1*rm1;
-
-            vx += a0*(a1*fx_shared[j] + a2*rhat_dot_force*rhatx);
-            vy += a0*(a1*fy_shared[j] + a2*rhat_dot_force*rhaty);
-            vz += a0*(a1*fz_shared[j] + a2*rhat_dot_force*rhatz);
-
-            #if !PRESCRIBED_CILIA
-
-              a0 = 0.019894367886487*rm1*rm1*rm1; // 0.019894367886487 = 1/(16*PI)
-
-              wx += a0*(3.0*rhat_dot_torque*rhatx - taux_shared[j]);
-              wy += a0*(3.0*rhat_dot_torque*rhaty - tauy_shared[j]);
-              wz += a0*(3.0*rhat_dot_torque*rhatz - tauz_shared[j]);
-
-              a0 = 0.039788735772974*rm1*rm1; // 0.039788735772974 = 1/(8*PI)
-
-              vx += a0*(tauy_shared[j]*rhatz - tauz_shared[j]*rhaty);
-              vy += a0*(tauz_shared[j]*rhatx - taux_shared[j]*rhatz);
-              vz += a0*(taux_shared[j]*rhaty - tauy_shared[j]*rhatx);
-
-              wx += a0*(fy_shared[j]*rhatz - fz_shared[j]*rhaty);
-              wy += a0*(fz_shared[j]*rhatx - fx_shared[j]*rhatz);
-              wz += a0*(fx_shared[j]*rhaty - fy_shared[j]*rhatx);
-
-            #endif
-
-            // Now for the wall-induced corrections
-            rm1 = 1.0/sqrt((xi - x_shared[j])*(xi - x_shared[j]) + (yi - y_shared[j])*(yi - y_shared[j]) + (zi + z_shared[j])*(zi + z_shared[j]));
-            double rm2 = rm1*rm1;
-            double rm3 = rm2*rm1;
-            double rm4 = rm3*rm1;
-            double rm5 = rm4*rm1;
-
-            double ex = (xi - x_shared[j])*rm1;
-            double ey = (yi - y_shared[j])*rm1;
-            double ez = (zi + z_shared[j])*rm1;
-
-            double h = z_shared[j]/(zi + z_shared[j]);
-
-            double e_dot_force = ex*fx_shared[j] + ey*fy_shared[j] + ez*fz_shared[j];
-            double e_dot_torque = ex*taux_shared[j] + ey*tauy_shared[j] + ez*tauz_shared[j];
-
-            double ez2 = ez*ez;
-
-            a0 = -(0.75*rm1*(1.0 + 2.0*h*(1.0-h)*ez2) + 0.5*(rm3*(1.0 - 3.0*ez2) - rm5*(1.0 - 5.0*ez2)));
-            a1 = -(0.75*rm1*(1.0 - 6.0*h*(1.0-h)*ez2) - 1.5*rm3*(1.0 - 5.0*ez2) + 2.5*rm5*(1.0 - 7.0*ez2))*e_dot_force;
-            a2 = ez*fz_shared[j]*(1.5*h*rm1*(1.0 - 6.0*(1.0-h)*ez2) - 3.0*rm3*(1.0 - 5.0*ez2) + 5.0*rm5*(2.0 - 7.0*ez2));
-            double a3 = (1.5*h*rm1 - 5.0*rm5)*e_dot_force;
-            double a4 = -((3.0*h*h*rm1 + 3.0*rm3)*ez2 + (2.0 - 15.0*ez2)*rm5)*fz_shared[j];
-
-            vx += ForceFactor*(a0*fx_shared[j] + (a1 + a2)*ex);
-            vy += ForceFactor*(a0*fy_shared[j] + (a1 + a2)*ey);
-            vz += ForceFactor*(a0*fz_shared[j] + (a1 + a2 + a3)*ez + a4);
-
-            #if !PRESCRIBED_CILIA
-
-              a0 = rm3*(0.375 - 2.25*ez2);
-              a1 = -1.125*rm3*e_dot_torque;
-              a2 = 2.25*ez*rm3*e_dot_torque;
-              a3 = 2.25*rm3*(ex*tauy_shared[j] - ey*taux_shared[j]);
-
-              wx += ForceFactor*(a0*taux_shared[j] + a1*ex - a3*ey);
-              wy += ForceFactor*(a0*tauy_shared[j] + a1*ey + a3*ex);
-              wz += ForceFactor*(a0*tauz_shared[j] + a1*ez + a2);
-
-              a0 = 0.75*rm2;
-              a1 = fz_shared[j]*(9.0*h*ez2*rm2 + (1.5 - 15.0*ez2)*rm4);
-              a2 = -ez*e_dot_force*(4.5*h*rm2 - 7.5*rm4);
-              a3 = -1.5*ez*(h*rm2 - rm4);
-
-              wx -= ForceFactor*(a0*(fy_shared[j]*ez - fz_shared[j]*ey) - (a1+a2)*ey + a3*fy_shared[j]);
-              wy -= ForceFactor*(a0*(fz_shared[j]*ex - fx_shared[j]*ez) + (a1+a2)*ex - a3*fx_shared[j]);
-              wz -= ForceFactor*a0*(fx_shared[j]*ey - fy_shared[j]*ex);
-
-              // We use symmetry of the grand mobility matrix to calculate this contribution as
-              // the torque multiplied by the transpose of the sub-block relating the angular velocity
-              // of particle j to the force on particle i.
-
-              h = 1.0 - h;
-              ex *= -1.0;
-              ey *= -1.0;
-
-              const double e_cross_T_3 = ex*tauy_shared[j] - ey*taux_shared[j];
-              a1 = (9.0*h*ez2*rm2 + (1.5 - 15.0*ez2)*rm4)*e_cross_T_3;
-              a2 = -ez*(4.5*h*rm2 - 7.5*rm4)*e_cross_T_3;
-              a3 = -1.5*ez*(h*rm2 - rm4);
-
-              vx -= ForceFactor*(a0*(tauz_shared[j]*ey - tauy_shared[j]*ez) + a2*ex - a3*tauy_shared[j]);
-              vy -= ForceFactor*(a0*(taux_shared[j]*ez - tauz_shared[j]*ex) + a2*ey + a3*taux_shared[j]);
-              vz -= ForceFactor*(a0*(tauy_shared[j]*ex - taux_shared[j]*ey) + a2*ez + a1);
-
-            #endif
-
-          }
-      }
-
-    }
-
-      __syncthreads();
-
-    } // End of loop over filament segment forces and torques.
-
-    if (i < (start_seg + num_segs)){
-
-      const int p = 6*(i - start_seg);
-
-      V[p] = vx;
-      V[p + 1] = vy;
-      V[p + 2] = vz;
-      V[p + 3] = wx;
-      V[p + 4] = wy;
-      V[p + 5] = wz;
-
-    }
-
-  } // End of striding loop over filament segment velocities.
-
-} // End of Mss_mult kernel.
-
-#else
-
-__global__ void Mss_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
-
-  // Calculates the velocities of filament segments given the forces and torques
-  // on the segments.
-
-  const int index = threadIdx.x + blockIdx.x*blockDim.x;
-  const int stride = blockDim.x*gridDim.x;
-
-  // Declare the shared memory for this thread block
-  __shared__ double x_shared[THREADS_PER_BLOCK];
-  __shared__ double y_shared[THREADS_PER_BLOCK];
-  __shared__ double z_shared[THREADS_PER_BLOCK];
-  __shared__ double fx_shared[THREADS_PER_BLOCK];
-  __shared__ double fy_shared[THREADS_PER_BLOCK];
-  __shared__ double fz_shared[THREADS_PER_BLOCK];
-  __shared__ double taux_shared[THREADS_PER_BLOCK];
-  __shared__ double tauy_shared[THREADS_PER_BLOCK];
-  __shared__ double tauz_shared[THREADS_PER_BLOCK];
-
-  double vx, vy, vz, wx, wy, wz;
-  double xi, yi, zi;
-
-  // Stay in the loop as long as any thread in the block still needs to compute velocities.
-  for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
-
-    if (i < (start_seg + num_segs)){
-
-      vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
-      xi = X[3*i]; yi = X[3*i + 1]; zi = X[3*i + 2];
-
-    }
-
-    for (int j_start = 0; j_start < NSWIM*NFIL*NSEG; j_start += THREADS_PER_BLOCK){
-
-      const int j_to_read = j_start + threadIdx.x;
-
-      if (j_to_read < NSWIM*NFIL*NSEG){
-
-        x_shared[threadIdx.x] = X[3*j_to_read];
-        y_shared[threadIdx.x] = X[3*j_to_read + 1];
-        z_shared[threadIdx.x] = X[3*j_to_read + 2];
-        fx_shared[threadIdx.x] = F[6*j_to_read];
-        fy_shared[threadIdx.x] = F[6*j_to_read + 1];
-        fz_shared[threadIdx.x] = F[6*j_to_read + 2];
-        taux_shared[threadIdx.x] = F[6*j_to_read + 3];
-        tauy_shared[threadIdx.x] = F[6*j_to_read + 4];
-        tauz_shared[threadIdx.x] = F[6*j_to_read + 5];
+        vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
+        xi = X[3*i]; yi = X[3*i + 1]; zi = X[3*i + 2];
 
       }
 
-      __syncthreads();
+      for (int j_start = 0; j_start < NFIL*NSEG; j_start += THREADS_PER_BLOCK){
 
-      if (i < (start_seg + num_segs)){
+        const int j_to_read = j_start + threadIdx.x;
 
-        for (int j=0; (j < THREADS_PER_BLOCK) && (j_start + j < NSWIM*NFIL*NSEG); j++){
+        if (j_to_read < NFIL*NSEG){
 
-          double rx = xi - x_shared[j];
-          double ry = yi - y_shared[j];
-          double rz = zi - z_shared[j];
+          x_shared[threadIdx.x] = X[3*j_to_read];
+          y_shared[threadIdx.x] = X[3*j_to_read + 1];
+          z_shared[threadIdx.x] = X[3*j_to_read + 2];
+          fx_shared[threadIdx.x] = F[6*j_to_read];
+          fy_shared[threadIdx.x] = F[6*j_to_read + 1];
+          fz_shared[threadIdx.x] = F[6*j_to_read + 2];
+          taux_shared[threadIdx.x] = F[6*j_to_read + 3];
+          tauy_shared[threadIdx.x] = F[6*j_to_read + 4];
+          tauz_shared[threadIdx.x] = F[6*j_to_read + 5];
 
-          const double r = sqrt(rx*rx + ry*ry + rz*rz);
-          const double rm1 = 1.0/(r + 1e-20);
+        }
 
-          rx *= rm1; ry *= rm1; rz *= rm1;
+        __syncthreads();
 
-          double A, B;
+        if (i < (start_seg + num_segs)){
 
-          // translation-translation
+          for (int j=0; (j < THREADS_PER_BLOCK) && (j_start + j < NFIL*NSEG); j++){
 
-          double r_dot = rx*fx_shared[j] + ry*fy_shared[j] + rz*fz_shared[j];
+            if (i == (j + j_start)){
 
-          if (r > 2.0*RSEG){
+              // Self-mobility
+              const double hm1 = 1.0/zi;
+              const double hm3 = hm1*hm1*hm1;
+              const double hm4 = hm3*hm1;
+              const double hm5 = hm4*hm1;
 
-            double temp = 2.0*RSEG*RSEG*rm1*rm1;
+              double a0 = ForceFactor - (9.0*hm1 - 2.0*hm3 + hm5)*0.003315727981081; // 0.003315727981081 = 1/(6*PI*16)
+              double a1 = ForceFactor - (9.0*hm1 - 4.0*hm3 + hm5)*0.006631455962162; // 0.006631455962162 = 1/(6*PI*8)
 
-            A = 1.0 + temp/3.0;
-            B = 1.0 - temp;
+              #if PRESCRIBED_CILIA
 
-            temp = rm1/(8.0*PI*MU);
+                vx += a0*fx_shared[j];
+                vy += a0*fy_shared[j];
+                vz += a1*fz_shared[j];
 
-            A *= temp;
-            B *= temp*r_dot;
+              #else
 
-          } else {
+                const double a2 = 0.004973591971622*hm4; // 0.004973591971622 = 3/(6*PI*32)
 
-            B = 3.0*r/(32.0*RSEG);
-            A = 1.0 - 3.0*B;
+                vx += a0*fx_shared[j] + a2*tauy_shared[j];
+                vy += a0*fy_shared[j] - a2*taux_shared[j];
+                vz += a1*fz_shared[j];
 
-            double temp = 1.0/(6.0*PI*MU*RSEG);
+                a0 = TorqueFactor - 0.012433979929054*hm3; // 0.012433979929054 = 15/(6*PI*64)
+                a1 = TorqueFactor - 0.004973591971622*hm3; // 0.004973591971622 = 3/(6*PI*32)
 
-            A *= temp;
-            B *= temp*r_dot;
+                wx += a0*taux_shared[j] - a2*fy_shared[j];
+                wy += a0*tauy_shared[j] + a2*fx_shared[j];
+                wz += a1*tauz_shared[j];
 
-          }
-
-          vx += A*fx_shared[j] + B*rx;
-          vy += A*fy_shared[j] + B*ry;
-          vz += A*fz_shared[j] + B*rz;
-
-          #if !PRESCRIBED_CILIA
-
-            // rotation-rotation
-
-            r_dot = rx*taux_shared[j] + ry*tauy_shared[j] + rz*tauz_shared[j];
-
-            if (r > 2.0*RSEG){
-
-              A = -rm1*rm1*rm1/(16.0*PI*MU);
-              B = -3.0*r_dot*A;
+              #endif
 
             } else {
 
-              double temp = r/RSEG;
+              double rm1 = 1.0/sqrt((xi - x_shared[j])*(xi - x_shared[j]) + (yi - y_shared[j])*(yi - y_shared[j]) + (zi - z_shared[j])*(zi - z_shared[j]));
 
-              B = 9.0*temp/32.0;
-              A = -3.0*B;
+              // Begin with the unbounded terms
+              double rhatx = (xi - x_shared[j])*rm1;
+              double rhaty = (yi - y_shared[j])*rm1;
+              double rhatz = (zi - z_shared[j])*rm1;
+              double rhat_dot_force = rhatx*fx_shared[j] + rhaty*fy_shared[j] + rhatz*fz_shared[j];
+              double rhat_dot_torque = rhatx*taux_shared[j] + rhaty*tauy_shared[j] + rhatz*tauz_shared[j];
 
-              temp *= temp*temp;
+              double a0 = 0.039788735772974*rm1; // 0.039788735772974 = 1/(8*PI)
+              double a1 = 1.0 + 0.666666666666667*rm1*rm1;
+              double a2 = 1.0 - 2.0*rm1*rm1;
 
-              A += 1.0 + 5.0*temp/64.0;
-              B -= 3.0*temp/64.0;
+              vx += a0*(a1*fx_shared[j] + a2*rhat_dot_force*rhatx);
+              vy += a0*(a1*fy_shared[j] + a2*rhat_dot_force*rhaty);
+              vz += a0*(a1*fz_shared[j] + a2*rhat_dot_force*rhatz);
 
-              temp = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
+              #if !PRESCRIBED_CILIA
+
+                a0 = 0.019894367886487*rm1*rm1*rm1; // 0.019894367886487 = 1/(16*PI)
+
+                wx += a0*(3.0*rhat_dot_torque*rhatx - taux_shared[j]);
+                wy += a0*(3.0*rhat_dot_torque*rhaty - tauy_shared[j]);
+                wz += a0*(3.0*rhat_dot_torque*rhatz - tauz_shared[j]);
+
+                a0 = 0.039788735772974*rm1*rm1; // 0.039788735772974 = 1/(8*PI)
+
+                vx += a0*(tauy_shared[j]*rhatz - tauz_shared[j]*rhaty);
+                vy += a0*(tauz_shared[j]*rhatx - taux_shared[j]*rhatz);
+                vz += a0*(taux_shared[j]*rhaty - tauy_shared[j]*rhatx);
+
+                wx += a0*(fy_shared[j]*rhatz - fz_shared[j]*rhaty);
+                wy += a0*(fz_shared[j]*rhatx - fx_shared[j]*rhatz);
+                wz += a0*(fx_shared[j]*rhaty - fy_shared[j]*rhatx);
+
+              #endif
+
+              // Now for the wall-induced corrections
+              rm1 = 1.0/sqrt((xi - x_shared[j])*(xi - x_shared[j]) + (yi - y_shared[j])*(yi - y_shared[j]) + (zi + z_shared[j])*(zi + z_shared[j]));
+              double rm2 = rm1*rm1;
+              double rm3 = rm2*rm1;
+              double rm4 = rm3*rm1;
+              double rm5 = rm4*rm1;
+
+              double ex = (xi - x_shared[j])*rm1;
+              double ey = (yi - y_shared[j])*rm1;
+              double ez = (zi + z_shared[j])*rm1;
+
+              double h = z_shared[j]/(zi + z_shared[j]);
+
+              double e_dot_force = ex*fx_shared[j] + ey*fy_shared[j] + ez*fz_shared[j];
+              double e_dot_torque = ex*taux_shared[j] + ey*tauy_shared[j] + ez*tauz_shared[j];
+
+              double ez2 = ez*ez;
+
+              a0 = -(0.75*rm1*(1.0 + 2.0*h*(1.0-h)*ez2) + 0.5*(rm3*(1.0 - 3.0*ez2) - rm5*(1.0 - 5.0*ez2)));
+              a1 = -(0.75*rm1*(1.0 - 6.0*h*(1.0-h)*ez2) - 1.5*rm3*(1.0 - 5.0*ez2) + 2.5*rm5*(1.0 - 7.0*ez2))*e_dot_force;
+              a2 = ez*fz_shared[j]*(1.5*h*rm1*(1.0 - 6.0*(1.0-h)*ez2) - 3.0*rm3*(1.0 - 5.0*ez2) + 5.0*rm5*(2.0 - 7.0*ez2));
+              double a3 = (1.5*h*rm1 - 5.0*rm5)*e_dot_force;
+              double a4 = -((3.0*h*h*rm1 + 3.0*rm3)*ez2 + (2.0 - 15.0*ez2)*rm5)*fz_shared[j];
+
+              vx += ForceFactor*(a0*fx_shared[j] + (a1 + a2)*ex);
+              vy += ForceFactor*(a0*fy_shared[j] + (a1 + a2)*ey);
+              vz += ForceFactor*(a0*fz_shared[j] + (a1 + a2 + a3)*ez + a4);
+
+              #if !PRESCRIBED_CILIA
+
+                a0 = rm3*(0.375 - 2.25*ez2);
+                a1 = -1.125*rm3*e_dot_torque;
+                a2 = 2.25*ez*rm3*e_dot_torque;
+                a3 = 2.25*rm3*(ex*tauy_shared[j] - ey*taux_shared[j]);
+
+                wx += ForceFactor*(a0*taux_shared[j] + a1*ex - a3*ey);
+                wy += ForceFactor*(a0*tauy_shared[j] + a1*ey + a3*ex);
+                wz += ForceFactor*(a0*tauz_shared[j] + a1*ez + a2);
+
+                a0 = 0.75*rm2;
+                a1 = fz_shared[j]*(9.0*h*ez2*rm2 + (1.5 - 15.0*ez2)*rm4);
+                a2 = -ez*e_dot_force*(4.5*h*rm2 - 7.5*rm4);
+                a3 = -1.5*ez*(h*rm2 - rm4);
+
+                wx -= ForceFactor*(a0*(fy_shared[j]*ez - fz_shared[j]*ey) - (a1+a2)*ey + a3*fy_shared[j]);
+                wy -= ForceFactor*(a0*(fz_shared[j]*ex - fx_shared[j]*ez) + (a1+a2)*ex - a3*fx_shared[j]);
+                wz -= ForceFactor*a0*(fx_shared[j]*ey - fy_shared[j]*ex);
+
+                // We use symmetry of the grand mobility matrix to calculate this contribution as
+                // the torque multiplied by the transpose of the sub-block relating the angular velocity
+                // of particle j to the force on particle i.
+
+                h = 1.0 - h;
+                ex *= -1.0;
+                ey *= -1.0;
+
+                const double e_cross_T_3 = ex*tauy_shared[j] - ey*taux_shared[j];
+                a1 = (9.0*h*ez2*rm2 + (1.5 - 15.0*ez2)*rm4)*e_cross_T_3;
+                a2 = -ez*(4.5*h*rm2 - 7.5*rm4)*e_cross_T_3;
+                a3 = -1.5*ez*(h*rm2 - rm4);
+
+                vx -= ForceFactor*(a0*(tauz_shared[j]*ey - tauy_shared[j]*ez) + a2*ex - a3*tauy_shared[j]);
+                vy -= ForceFactor*(a0*(taux_shared[j]*ez - tauz_shared[j]*ex) + a2*ey + a3*taux_shared[j]);
+                vz -= ForceFactor*(a0*(tauy_shared[j]*ex - taux_shared[j]*ey) + a2*ez + a1);
+
+              #endif
+
+            }
+        }
+
+      }
+
+        __syncthreads();
+
+      } // End of loop over filament segment forces and torques.
+
+      if (i < (start_seg + num_segs)){
+
+        const int p = 6*(i - start_seg);
+
+        V[p] = vx;
+        V[p + 1] = vy;
+        V[p + 2] = vz;
+        V[p + 3] = wx;
+        V[p + 4] = wy;
+        V[p + 5] = wz;
+
+      }
+
+    } // End of striding loop over filament segment velocities.
+
+  } // End of Mss_mult kernel.
+
+#else
+
+  __global__ void Mss_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
+
+    // Calculates the velocities of filament segments given the forces and torques
+    // on the segments.
+
+    const int index = threadIdx.x + blockIdx.x*blockDim.x;
+    const int stride = blockDim.x*gridDim.x;
+
+    // Declare the shared memory for this thread block
+    __shared__ double x_shared[THREADS_PER_BLOCK];
+    __shared__ double y_shared[THREADS_PER_BLOCK];
+    __shared__ double z_shared[THREADS_PER_BLOCK];
+    __shared__ double fx_shared[THREADS_PER_BLOCK];
+    __shared__ double fy_shared[THREADS_PER_BLOCK];
+    __shared__ double fz_shared[THREADS_PER_BLOCK];
+    __shared__ double taux_shared[THREADS_PER_BLOCK];
+    __shared__ double tauy_shared[THREADS_PER_BLOCK];
+    __shared__ double tauz_shared[THREADS_PER_BLOCK];
+
+    double vx, vy, vz, wx, wy, wz;
+    double xi, yi, zi;
+
+    // Stay in the loop as long as any thread in the block still needs to compute velocities.
+    for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
+
+      if (i < (start_seg + num_segs)){
+
+        vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
+        xi = X[3*i]; yi = X[3*i + 1]; zi = X[3*i + 2];
+
+      }
+
+      for (int j_start = 0; j_start < NSWIM*NFIL*NSEG; j_start += THREADS_PER_BLOCK){
+
+        const int j_to_read = j_start + threadIdx.x;
+
+        if (j_to_read < NSWIM*NFIL*NSEG){
+
+          x_shared[threadIdx.x] = X[3*j_to_read];
+          y_shared[threadIdx.x] = X[3*j_to_read + 1];
+          z_shared[threadIdx.x] = X[3*j_to_read + 2];
+          fx_shared[threadIdx.x] = F[6*j_to_read];
+          fy_shared[threadIdx.x] = F[6*j_to_read + 1];
+          fz_shared[threadIdx.x] = F[6*j_to_read + 2];
+          taux_shared[threadIdx.x] = F[6*j_to_read + 3];
+          tauy_shared[threadIdx.x] = F[6*j_to_read + 4];
+          tauz_shared[threadIdx.x] = F[6*j_to_read + 5];
+
+        }
+
+        __syncthreads();
+
+        if (i < (start_seg + num_segs)){
+
+          for (int j=0; (j < THREADS_PER_BLOCK) && (j_start + j < NSWIM*NFIL*NSEG); j++){
+
+            double rx = xi - x_shared[j];
+            double ry = yi - y_shared[j];
+            double rz = zi - z_shared[j];
+
+            const double r = sqrt(rx*rx + ry*ry + rz*rz);
+            const double rm1 = 1.0/(r + 1e-20);
+
+            rx *= rm1; ry *= rm1; rz *= rm1;
+
+            double A, B;
+
+            // translation-translation
+
+            double r_dot = rx*fx_shared[j] + ry*fy_shared[j] + rz*fz_shared[j];
+
+            if (r > 2.0*RSEG){
+
+              double temp = 2.0*RSEG*RSEG*rm1*rm1;
+
+              A = 1.0 + temp/3.0;
+              B = 1.0 - temp;
+
+              temp = rm1/(8.0*PI*MU);
+
+              A *= temp;
+              B *= temp*r_dot;
+
+            } else {
+
+              B = 3.0*r/(32.0*RSEG);
+              A = 1.0 - 3.0*B;
+
+              double temp = 1.0/(6.0*PI*MU*RSEG);
 
               A *= temp;
               B *= temp*r_dot;
 
             }
 
-            wx += A*taux_shared[j] + B*rx;
-            wy += A*tauy_shared[j] + B*ry;
-            wz += A*tauz_shared[j] + B*rz;
+            vx += A*fx_shared[j] + B*rx;
+            vy += A*fy_shared[j] + B*ry;
+            vz += A*fz_shared[j] + B*rz;
 
-            // translation-rotation
+            #if !PRESCRIBED_CILIA
 
-            if (r > 2.0*RSEG){
+              // rotation-rotation
 
-              A = rm1*rm1/(8.0*PI*MU);
+              r_dot = rx*taux_shared[j] + ry*tauy_shared[j] + rz*tauz_shared[j];
 
-            } else {
+              if (r > 2.0*RSEG){
 
-              A = r*(1.0 - 3.0*r/(8.0*RSEG));
-              A /= 16.0*PI*MU*RSEG*RSEG*RSEG;
+                A = -rm1*rm1*rm1/(16.0*PI*MU);
+                B = -3.0*r_dot*A;
 
-            }
+              } else {
 
-            wx += A*(fy_shared[j]*rz - fz_shared[j]*ry);
-            wy += A*(fz_shared[j]*rx - fx_shared[j]*rz);
-            wz += A*(fx_shared[j]*ry - fy_shared[j]*rx);
+                double temp = r/RSEG;
 
-            vx += A*(tauy_shared[j]*rz - tauz_shared[j]*ry);
-            vy += A*(tauz_shared[j]*rx - taux_shared[j]*rz);
-            vz += A*(taux_shared[j]*ry - tauy_shared[j]*rx);
+                B = 9.0*temp/32.0;
+                A = -3.0*B;
 
-          #endif
+                temp *= temp*temp;
+
+                A += 1.0 + 5.0*temp/64.0;
+                B -= 3.0*temp/64.0;
+
+                temp = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
+
+                A *= temp;
+                B *= temp*r_dot;
+
+              }
+
+              wx += A*taux_shared[j] + B*rx;
+              wy += A*tauy_shared[j] + B*ry;
+              wz += A*tauz_shared[j] + B*rz;
+
+              // translation-rotation
+
+              if (r > 2.0*RSEG){
+
+                A = rm1*rm1/(8.0*PI*MU);
+
+              } else {
+
+                A = r*(1.0 - 3.0*r/(8.0*RSEG));
+                A /= 16.0*PI*MU*RSEG*RSEG*RSEG;
+
+              }
+
+              wx += A*(fy_shared[j]*rz - fz_shared[j]*ry);
+              wy += A*(fz_shared[j]*rx - fx_shared[j]*rz);
+              wz += A*(fx_shared[j]*ry - fy_shared[j]*rx);
+
+              vx += A*(tauy_shared[j]*rz - tauz_shared[j]*ry);
+              vy += A*(tauz_shared[j]*rx - taux_shared[j]*rz);
+              vz += A*(taux_shared[j]*ry - tauy_shared[j]*rx);
+
+            #endif
+
+          }
 
         }
 
+        __syncthreads();
+
+      } // End of loop over filament segment forces and torques.
+
+      if (i < (start_seg + num_segs)){
+
+        const int p = 6*(i - start_seg);
+
+        V[p] = vx;
+        V[p + 1] = vy;
+        V[p + 2] = vz;
+        V[p + 3] = wx;
+        V[p + 4] = wy;
+        V[p + 5] = wz;
+
       }
 
-      __syncthreads();
+    } // End of striding loop over filament segment velocities.
 
-    } // End of loop over filament segment forces and torques.
+  } // End of Mss_mult kernel.
 
-    if (i < (start_seg + num_segs)){
-
-      const int p = 6*(i - start_seg);
-
-      V[p] = vx;
-      V[p + 1] = vy;
-      V[p + 2] = vz;
-      V[p + 3] = wx;
-      V[p + 4] = wy;
-      V[p + 5] = wz;
-
-    }
-
-  } // End of striding loop over filament segment velocities.
-
-} // End of Mss_mult kernel.
+#endif
 
 __global__ void Mbb_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_blob, const int num_blobs){
 
@@ -857,8 +859,6 @@ __global__ void Mbs_mult(double * __restrict__ V, const double *const __restrict
   } // End of striding loop over blob velocities.
 
 } // End of Mbs_mult kernel.
-
-#endif
 
 __global__ void barrier_forces(double * __restrict__ f_segs, double * __restrict__ f_blobs_repulsion, const double *const __restrict__ x_segs, const double *const __restrict__ x_blobs, const int start_seg, const int num_segs, const int start_blob, const int num_blobs){
 
