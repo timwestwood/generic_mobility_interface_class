@@ -1388,6 +1388,7 @@ void mobility_solver::compute_velocities(std::vector<swimmer>& swimmers, int& nu
 
       #endif
 
+      copy_blob_forces_to_device();
       evaluate_segment_blob_mobility();
 
     #endif
