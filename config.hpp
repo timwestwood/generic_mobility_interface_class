@@ -82,6 +82,7 @@
 // 2 = Fresh start from backup file (i.e. uses saved state but resets t=0. Use for hold-then-release style simulations)
 #define INITIAL_CONDITIONS_FILE_NAME SIMULATION_NAME // SIMULATION_NAME or "a_different_sim_name"
 // N.B. Simulations using GMRES can resume/start using backup files from Broyden-only simulations, but the opposite is not true.
+// N.B. For options 0 and 2, whilst the simulation state will be fresh, all saved data will still be appended to any data from a previous simulation of the same name.
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Physical parameters
