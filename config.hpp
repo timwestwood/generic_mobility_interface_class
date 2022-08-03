@@ -40,7 +40,7 @@
   // If true, cilia phase speeds are solved for as part of the dynamics.
   // If false, phase_speed = omega0 is constant for each cilium.
 
-  #define WRITE_GENERALISED_FORCES true
+  #define WRITE_GENERALISED_FORCES false
   // If true, this simulation will save its generalised forces to file for use as the reference values.
   // NOTE: This will overwrite any existing force reference file unless its name has been changed.
 

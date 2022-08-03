@@ -11,9 +11,6 @@ cilia_clean:
 	-rm cilia.exp
 	-rm cilia.lib
 
-# cilia_data_clean:
-# 	-rm 
-
 flow_field_clean:
 	-rm flow_field
 	-rm flow_field.exe
