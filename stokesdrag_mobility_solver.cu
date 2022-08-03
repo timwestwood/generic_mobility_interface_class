@@ -22,7 +22,7 @@ void stokesdrag_mobility_solver::evaluate_segment_segment_mobility(){
 
       int num_thread_blocks = (num_segs[n] + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK;
 
-      Ms_mult<<<num_thread_blocks, THREADS_PER_BLOCK>>>(v_segs_device[n], f_segs_device[n], x_segs_device[n], start_seg, num_segs[n]);
+      Ms_mult<<<num_thread_blocks, THREADS_PER_BLOCK>>>(v_segs_device[n], f_segs_device[n], start_seg, num_segs[n]);
 
       start_seg += num_segs[n];
 
@@ -58,7 +58,7 @@ void stokesdrag_mobility_solver::evaluate_blob_blob_mobility(){
 
     int num_thread_blocks = (num_blobs[n] + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK;
 
-    Mb_mult<<<num_thread_blocks, THREADS_PER_BLOCK>>>(v_blobs_device[n], f_blobs_device[n], x_blobs_device[n], start_blob, num_blobs[n]);
+    Mb_mult<<<num_thread_blocks, THREADS_PER_BLOCK>>>(v_blobs_device[n], f_blobs_device[n], start_blob, num_blobs[n]);
 
     start_blob += num_blobs[n];
 

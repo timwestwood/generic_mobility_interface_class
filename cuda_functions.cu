@@ -861,7 +861,7 @@ __global__ void Mbs_mult(double * __restrict__ V, const double *const __restrict
 } // End of Mbs_mult kernel.
 
 
-__global__ void Ms_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
+__global__ void Ms_mult(double * __restrict__ V, const double *const __restrict__ F, const int start_seg, const int num_segs){
 
     // Calculates the velocities of filament segments given the forces and torques
     // on the segments.
@@ -912,7 +912,7 @@ __global__ void Ms_mult(double * __restrict__ V, const double *const __restrict_
 
 
 
-__global__ void Mb_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_blob, const int num_blobs){
+__global__ void Mb_mult(double * __restrict__ V, const double *const __restrict__ F, const int start_blob, const int num_blobs){
 
   // Calculates the velocities of rigid-body blobs given the forces they experience.
 

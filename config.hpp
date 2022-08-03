@@ -169,7 +169,7 @@
 #else
 
   #define STEPS_PER_PERIOD 300
-  #define SAVES_PER_PERIOD 100
+  #define SAVES_PER_PERIOD 300
 
 #endif
 
