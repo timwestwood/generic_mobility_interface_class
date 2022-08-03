@@ -860,6 +860,99 @@ __global__ void Mbs_mult(double * __restrict__ V, const double *const __restrict
 
 } // End of Mbs_mult kernel.
 
+
+__global__ void Ms_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
+
+    // Calculates the velocities of filament segments given the forces and torques
+    // on the segments.
+
+    const int index = threadIdx.x + blockIdx.x*blockDim.x;
+    const int stride = blockDim.x*gridDim.x;
+
+    double vx, vy, vz, wx, wy, wz;
+
+    // Stay in the loop as long as any thread in the block still needs to compute velocities.
+    for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
+
+      if (i < (start_seg + num_segs)){
+
+        vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
+
+        double temp = 1.0/(6.0*PI*MU*RSEG);
+        double temp2 = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
+
+        vx += F[6*i]*temp;
+        vy += F[6*i + 1]*temp;
+        vz += F[6*i + 2]*temp;
+        wx += F[6*i + 3]*temp2;
+        wy += F[6*i + 4]*temp2;
+        wz += F[6*i + 5]*temp2;
+
+
+      }
+
+      __syncthreads();
+
+      if (i < (start_seg + num_segs)){
+
+        const int p = 6*(i - start_seg);
+
+        V[p] = vx;
+        V[p + 1] = vy;
+        V[p + 2] = vz;
+        V[p + 3] = wx;
+        V[p + 4] = wy;
+        V[p + 5] = wz;
+
+      }
+
+    } // End of striding loop over filament segment velocities.
+
+  } // End of Ms_mult kernel.
+
+
+
+__global__ void Mb_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_blob, const int num_blobs){
+
+  // Calculates the velocities of rigid-body blobs given the forces they experience.
+
+  const int index = threadIdx.x + blockIdx.x*blockDim.x;
+  const int stride = blockDim.x*gridDim.x;
+
+  double vx, vy, vz;
+
+  // Stay in the loop as long as any thread in the block still needs to compute velocities.
+  for (int i = (start_blob + index); (i-threadIdx.x) < (start_blob + num_blobs); i+=stride){
+
+    if (i < (start_blob + num_blobs)){
+
+      vx = 0.0; vy = 0.0; vz = 0.0;
+
+      double temp = 1.0/(6.0*PI*MU*RBLOB);
+
+      vx += F[6*i]*temp;
+      vy += F[6*i + 1]*temp;
+      vz += F[6*i + 2]*temp;
+
+    }
+
+    __syncthreads();
+
+    if (i < (start_blob + num_blobs)){
+
+      const int p = 3*(i - start_blob);
+
+      V[p] = vx;
+      V[p + 1] = vy;
+      V[p + 2] = vz;
+
+    }
+
+  } // End of striding loop over blob velocities.
+
+} // End of Mb_mult kernel.
+
+
 __global__ void barrier_forces(double * __restrict__ f_segs, double * __restrict__ f_blobs_repulsion, const double *const __restrict__ x_segs, const double *const __restrict__ x_blobs, const int start_seg, const int num_segs, const int start_blob, const int num_blobs){
 
   #if !(PRESCRIBED_CILIA || NO_CILIA_SQUIRMER)

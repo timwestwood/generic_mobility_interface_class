@@ -10,7 +10,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Simulation type
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#define CILIA_TYPE 4
+#define CILIA_TYPE 0
 // Valid options:
 // 0 = Instability-driven cilia
 // 1 = Geometrically-switching cilia (partially implemented)
@@ -40,7 +40,7 @@
   // If true, cilia phase speeds are solved for as part of the dynamics.
   // If false, phase_speed = omega0 is constant for each cilium.
 
-  #define WRITE_GENERALISED_FORCES false
+  #define WRITE_GENERALISED_FORCES true
   // If true, this simulation will save its generalised forces to file for use as the reference values.
   // NOTE: This will overwrite any existing force reference file unless its name has been changed.
 
@@ -48,7 +48,7 @@
 
 #endif
 
-#define BODY_OR_SURFACE_TYPE 2
+#define BODY_OR_SURFACE_TYPE 0
 // Valid options:
 // 0 = An infinite plane wall at z = 0. This choice has some sub-types (see below).
 // 1 = Deformed planes with 2 principal curvatures (partially implemented)
@@ -64,7 +64,7 @@
 
 #elif BODY_OR_SURFACE_TYPE==2
 
-  #define SEEDING_TYPE 1
+  #define SEEDING_TYPE 0
   // Valid options:
   // 0 = Filaments are evenly distributed over the surface.
   // 1 = Filaments are seeded in an equatorial band.
@@ -82,12 +82,11 @@
 // 2 = Fresh start from backup file (i.e. uses saved state but resets t=0. Use for hold-then-release style simulations)
 #define INITIAL_CONDITIONS_FILE_NAME SIMULATION_NAME // SIMULATION_NAME or "a_different_sim_name"
 // N.B. Simulations using GMRES can resume/start using backup files from Broyden-only simulations, but the opposite is not true.
-// N.B. For options 0 and 2, whilst the simulation state will be fresh, all saved data will still be appended to any data from a previous simulation of the same name.
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Physical parameters
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#define NFIL 1 // The number of filaments attached to the rigid body/surface in each swimmer.
+#define NFIL 12 // The number of filaments attached to the rigid body/surface in each swimmer.
 #define NSEG 20 // The number of segments comprising each filament.
 #define NSWIM 1 // The number of swimmers.
 #define NBLOB 790 // The number of blobs to use as surface elements in each rigid body.
@@ -158,7 +157,7 @@
 
 #endif
 
-#define TOTAL_TIME_STEPS 20//(1*STEPS_PER_PERIOD) // Total number of time-steps in the simulation.
+#define TOTAL_TIME_STEPS 20000//(1*STEPS_PER_PERIOD) // Total number of time-steps in the simulation.
 #define NUM_EULER_STEPS 1 // Number of time-steps to use backwards-Euler before switching to BDF2.
 
 #if CILIA_TYPE==1

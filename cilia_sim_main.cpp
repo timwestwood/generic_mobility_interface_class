@@ -4,6 +4,7 @@
 #include <vector>
 #include "swimmer.hpp"
 #include "rpy_mobility_solver.hpp"
+#include "stokesdrag_mobility_solver.hpp"
 
 #if !(PRESCRIBED_CILIA || NO_CILIA_SQUIRMER)
 
@@ -107,7 +108,8 @@ int main(int argc, char** argv){
   config_file.close();
 
   // Initialise the simulation
-  rpy_mobility_solver mobility;
+  // rpy_mobility_solver mobility;
+  stokesdrag_mobility_solver mobility;
 
   mobility.initialise();
 

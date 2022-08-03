@@ -1,5 +1,5 @@
 CILIA_CPP = cilia_sim_main.cpp matrix.cpp quaternion.cpp segment.cpp filament.cpp broyden_solver.cpp rigid_body.cpp swimmer.cpp mobility_solver.cpp
-CILIA_CUDA = cuda_functions.cu rpy_mobility_solver.cu seeding.cu
+CILIA_CUDA = cuda_functions.cu rpy_mobility_solver.cu stokesdrag_mobility_solver.cu seeding.cu
 
 FLOW_FIELD_CPP = flow_field_main.cpp matrix.cpp quaternion.cpp
 FLOW_FIELD_CUDA = flow_field_evaluator.cu
@@ -10,6 +10,9 @@ cilia_clean:
 	-rm cilia.exe
 	-rm cilia.exp
 	-rm cilia.lib
+
+# cilia_data_clean:
+# 	-rm 
 
 flow_field_clean:
 	-rm flow_field
