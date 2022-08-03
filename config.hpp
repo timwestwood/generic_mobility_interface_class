@@ -48,7 +48,7 @@
 
 #endif
 
-#define BODY_OR_SURFACE_TYPE 0
+#define BODY_OR_SURFACE_TYPE 2
 // Valid options:
 // 0 = An infinite plane wall at z = 0. This choice has some sub-types (see below).
 // 1 = Deformed planes with 2 principal curvatures (partially implemented)
@@ -157,7 +157,7 @@
 
 #endif
 
-#define TOTAL_TIME_STEPS 20000//(1*STEPS_PER_PERIOD) // Total number of time-steps in the simulation.
+#define TOTAL_TIME_STEPS 200//(1*STEPS_PER_PERIOD) // Total number of time-steps in the simulation.
 #define NUM_EULER_STEPS 1 // Number of time-steps to use backwards-Euler before switching to BDF2.
 
 #if CILIA_TYPE==1
@@ -169,7 +169,7 @@
 #else
 
   #define STEPS_PER_PERIOD 300
-  #define SAVES_PER_PERIOD 20
+  #define SAVES_PER_PERIOD 100
 
 #endif
 

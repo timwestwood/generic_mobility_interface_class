@@ -32,7 +32,19 @@ void stokesdrag_mobility_solver::evaluate_segment_segment_mobility(){
 
 void stokesdrag_mobility_solver::evaluate_segment_blob_mobility(){
 
-  return;
+  int start_seg = 0;
+
+  for (int n = 0; n < num_gpus; n++){
+
+    cudaSetDevice(n);
+
+    int num_thread_blocks = (num_segs[n] + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK;
+
+    Ms_fill_zero<<<num_thread_blocks, THREADS_PER_BLOCK>>>(v_segs_device[n], start_seg, num_segs[n]);
+
+    start_seg += num_segs[n];
+
+  }
 
 }
 
@@ -56,7 +68,19 @@ void stokesdrag_mobility_solver::evaluate_blob_blob_mobility(){
 
 void stokesdrag_mobility_solver::evaluate_blob_segment_mobility(){
 
-  return;
+  int start_blob = 0;
+
+  for (int n = 0; n < num_gpus; n++){
+
+    cudaSetDevice(n);
+
+    const int num_thread_blocks = (num_blobs[n] + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK;
+
+    Mb_fill_zero<<<num_thread_blocks, THREADS_PER_BLOCK>>>(v_blobs_device[n], start_blob, num_blobs[n]);
+
+    start_blob += num_blobs[n];
+
+  }
 
 }
 

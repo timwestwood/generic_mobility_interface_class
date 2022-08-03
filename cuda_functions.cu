@@ -953,6 +953,68 @@ __global__ void Mb_mult(double * __restrict__ V, const double *const __restrict_
 } // End of Mb_mult kernel.
 
 
+__global__ void Ms_fill_zero(double * __restrict__ V, const int start_seg, const int num_segs){
+
+    // Calculates the velocities of filament segments given the forces and torques
+    // on the segments.
+
+    const int index = threadIdx.x + blockIdx.x*blockDim.x;
+    const int stride = blockDim.x*gridDim.x;
+
+    // Stay in the loop as long as any thread in the block still needs to compute velocities.
+    for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
+
+      if (i < (start_seg + num_segs)){
+
+        const int p = 6*(i - start_seg);
+
+        V[p] += 0.0;
+        V[p + 1] += 0.0;
+        V[p + 2] += 0.0;
+        V[p + 3] += 0.0;
+        V[p + 4] += 0.0;
+        V[p + 5] += 0.0;
+
+
+      }
+
+    } // End of striding loop over filament segment velocities.
+
+  } // End of Ms_fill_zero kernel.
+__global__ void Mb_fill_zero(double * __restrict__ V, const int start_blob, const int num_blobs){
+
+  // Fill zero velocity arrays
+
+  const int index = threadIdx.x + blockIdx.x*blockDim.x;
+  const int stride = blockDim.x*gridDim.x;
+
+  // Stay in the loop as long as any thread in the block still needs to fill zeros.
+  for (int i = (start_blob + index); (i-threadIdx.x) < (start_blob + num_blobs); i+=stride){
+
+    if (i < (start_blob + num_blobs)){
+
+      const int p = 3*(i - start_blob);
+
+      #if USE_BROYDEN_FOR_EVERYTHING
+
+        V[p] += 0.0;
+        V[p + 1] += 0.0;
+        V[p + 2] += 0.0;
+
+      #else
+
+        V[p] = 0.0;
+        V[p + 1] = 0.0;
+        V[p + 2] = 0.0;
+
+      #endif
+
+    }
+
+  } // End of striding loop over blob velocities.
+
+} // End of Mb_fill_zero kernel.
+
 __global__ void barrier_forces(double * __restrict__ f_segs, double * __restrict__ f_blobs_repulsion, const double *const __restrict__ x_segs, const double *const __restrict__ x_blobs, const int start_seg, const int num_segs, const int start_blob, const int num_blobs){
 
   #if !(PRESCRIBED_CILIA || NO_CILIA_SQUIRMER)
