@@ -872,26 +872,19 @@ __global__ void Ms_mult(double * __restrict__ V, const double *const __restrict_
     double vx, vy, vz, wx, wy, wz;
 
     // Stay in the loop as long as any thread in the block still needs to compute velocities.
-    for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
+    for (int i = (start_seg + index); i < (start_seg + num_segs); i+=stride){
 
-      if (i < (start_seg + num_segs)){
+      vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
 
-        vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
+      double temp = 1.0/(6.0*PI*MU*RSEG);
+      double temp2 = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
 
-        double temp = 1.0/(6.0*PI*MU*RSEG);
-        double temp2 = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
-
-        vx += F[6*i]*temp;
-        vy += F[6*i + 1]*temp;
-        vz += F[6*i + 2]*temp;
-        wx += F[6*i + 3]*temp2;
-        wy += F[6*i + 4]*temp2;
-        wz += F[6*i + 5]*temp2;
-
-
-      }
-
-      __syncthreads();
+      vx += F[6*i]*temp;
+      vy += F[6*i + 1]*temp;
+      vz += F[6*i + 2]*temp;
+      wx += F[6*i + 3]*temp2;
+      wy += F[6*i + 4]*temp2;
+      wz += F[6*i + 5]*temp2;
 
       if (i < (start_seg + num_segs)){
 
@@ -922,21 +915,15 @@ __global__ void Mb_mult(double * __restrict__ V, const double *const __restrict_
   double vx, vy, vz;
 
   // Stay in the loop as long as any thread in the block still needs to compute velocities.
-  for (int i = (start_blob + index); (i-threadIdx.x) < (start_blob + num_blobs); i+=stride){
+  for (int i = (start_blob + index); i < (start_blob + num_blobs); i+=stride){
 
-    if (i < (start_blob + num_blobs)){
+    vx = 0.0; vy = 0.0; vz = 0.0;
 
-      vx = 0.0; vy = 0.0; vz = 0.0;
+    double temp = 1.0/(6.0*PI*MU*RBLOB);
 
-      double temp = 1.0/(6.0*PI*MU*RBLOB);
-
-      vx += F[6*i]*temp;
-      vy += F[6*i + 1]*temp;
-      vz += F[6*i + 2]*temp;
-
-    }
-
-    __syncthreads();
+    vx += F[3*i]*temp;
+    vy += F[3*i + 1]*temp;
+    vz += F[3*i + 2]*temp;
 
     if (i < (start_blob + num_blobs)){
 
@@ -962,21 +949,16 @@ __global__ void Ms_fill_zero(double * __restrict__ V, const int start_seg, const
     const int stride = blockDim.x*gridDim.x;
 
     // Stay in the loop as long as any thread in the block still needs to compute velocities.
-    for (int i = (start_seg + index); (i-threadIdx.x) < (start_seg + num_segs); i+=stride){
+    for (int i = (start_seg + index); i < (start_seg + num_segs); i+=stride){
 
-      if (i < (start_seg + num_segs)){
+      const int p = 6*(i - start_seg);
 
-        const int p = 6*(i - start_seg);
-
-        V[p] += 0.0;
-        V[p + 1] += 0.0;
-        V[p + 2] += 0.0;
-        V[p + 3] += 0.0;
-        V[p + 4] += 0.0;
-        V[p + 5] += 0.0;
-
-
-      }
+      V[p] += 0.0;
+      V[p + 1] += 0.0;
+      V[p + 2] += 0.0;
+      V[p + 3] += 0.0;
+      V[p + 4] += 0.0;
+      V[p + 5] += 0.0;
 
     } // End of striding loop over filament segment velocities.
 
@@ -989,27 +971,23 @@ __global__ void Mb_fill_zero(double * __restrict__ V, const int start_blob, cons
   const int stride = blockDim.x*gridDim.x;
 
   // Stay in the loop as long as any thread in the block still needs to fill zeros.
-  for (int i = (start_blob + index); (i-threadIdx.x) < (start_blob + num_blobs); i+=stride){
+  for (int i = (start_blob + index); i < (start_blob + num_blobs); i+=stride){
 
-    if (i < (start_blob + num_blobs)){
+    const int p = 3*(i - start_blob);
 
-      const int p = 3*(i - start_blob);
+    #if USE_BROYDEN_FOR_EVERYTHING
 
-      #if USE_BROYDEN_FOR_EVERYTHING
+      V[p] += 0.0;
+      V[p + 1] += 0.0;
+      V[p + 2] += 0.0;
 
-        V[p] += 0.0;
-        V[p + 1] += 0.0;
-        V[p + 2] += 0.0;
+    #else
 
-      #else
+      V[p] = 0.0;
+      V[p + 1] = 0.0;
+      V[p + 2] = 0.0;
 
-        V[p] = 0.0;
-        V[p + 1] = 0.0;
-        V[p + 2] = 0.0;
-
-      #endif
-
-    }
+    #endif
 
   } // End of striding loop over blob velocities.
 
