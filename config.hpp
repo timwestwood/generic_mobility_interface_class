@@ -5,7 +5,7 @@
 #ifndef MY_CONFIG_HEADER_INCLUDED
 #define MY_CONFIG_HEADER_INCLUDED
 
-#define SIMULATION_NAME "stokesdrag"
+#define SIMULATION_NAME "junk"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Simulation type
@@ -86,7 +86,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Physical parameters
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#define NFIL 12 // The number of filaments attached to the rigid body/surface in each swimmer.
+#define NFIL 20 // The number of filaments attached to the rigid body/surface in each swimmer.
 #define NSEG 20 // The number of segments comprising each filament.
 #define NSWIM 1 // The number of swimmers.
 #define NBLOB 790 // The number of blobs to use as surface elements in each rigid body.
@@ -169,7 +169,7 @@
 #else
 
   #define STEPS_PER_PERIOD 300
-  #define SAVES_PER_PERIOD 30
+  #define SAVES_PER_PERIOD 10
 
 #endif
 

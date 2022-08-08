@@ -108,8 +108,8 @@ int main(int argc, char** argv){
   config_file.close();
 
   // Initialise the simulation
-  rpy_mobility_solver mobility;
-  // stokesdrag_mobility_solver mobility;
+  // rpy_mobility_solver mobility;
+  stokesdrag_mobility_solver mobility;
 
   mobility.initialise();
 

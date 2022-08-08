@@ -869,35 +869,20 @@ __global__ void Ms_mult(double * __restrict__ V, const double *const __restrict_
     const int index = threadIdx.x + blockIdx.x*blockDim.x;
     const int stride = blockDim.x*gridDim.x;
 
-    double vx, vy, vz, wx, wy, wz;
+    const double temp = 1.0/(6.0*PI*MU*RSEG);
+    const double temp2 = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
 
     // Stay in the loop as long as any thread in the block still needs to compute velocities.
     for (int i = (start_seg + index); i < (start_seg + num_segs); i+=stride){
 
-      vx = 0.0; vy = 0.0; vz = 0.0; wx = 0.0; wy = 0.0; wz = 0.0;
+      const int p = 6*(i - start_seg);
 
-      double temp = 1.0/(6.0*PI*MU*RSEG);
-      double temp2 = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
-
-      vx += F[6*i]*temp;
-      vy += F[6*i + 1]*temp;
-      vz += F[6*i + 2]*temp;
-      wx += F[6*i + 3]*temp2;
-      wy += F[6*i + 4]*temp2;
-      wz += F[6*i + 5]*temp2;
-
-      if (i < (start_seg + num_segs)){
-
-        const int p = 6*(i - start_seg);
-
-        V[p] = vx;
-        V[p + 1] = vy;
-        V[p + 2] = vz;
-        V[p + 3] = wx;
-        V[p + 4] = wy;
-        V[p + 5] = wz;
-
-      }
+      V[p] = temp*F[6*i];
+      V[p + 1] = temp*F[6*i + 1];
+      V[p + 2] = temp*F[6*i + 2];
+      V[p + 3] = temp2*F[6*i + 3];
+      V[p + 4] = temp2*F[6*i + 4];
+      V[p + 5] = temp2*F[6*i + 5];
 
     } // End of striding loop over filament segment velocities.
 
@@ -912,57 +897,21 @@ __global__ void Mb_mult(double * __restrict__ V, const double *const __restrict_
   const int index = threadIdx.x + blockIdx.x*blockDim.x;
   const int stride = blockDim.x*gridDim.x;
 
-  double vx, vy, vz;
+  const double temp = 1.0/(6.0*PI*MU*RBLOB);
 
   // Stay in the loop as long as any thread in the block still needs to compute velocities.
   for (int i = (start_blob + index); i < (start_blob + num_blobs); i+=stride){
 
-    vx = 0.0; vy = 0.0; vz = 0.0;
+    const int p = 3*(i - start_blob);
 
-    double temp = 1.0/(6.0*PI*MU*RBLOB);
-
-    vx += F[3*i]*temp;
-    vy += F[3*i + 1]*temp;
-    vz += F[3*i + 2]*temp;
-
-    if (i < (start_blob + num_blobs)){
-
-      const int p = 3*(i - start_blob);
-
-      V[p] = vx;
-      V[p + 1] = vy;
-      V[p + 2] = vz;
-
-    }
+    V[p] = temp*F[3*i];
+    V[p + 1] = temp*F[3*i + 1];
+    V[p + 2] = temp*F[3*i + 2];
 
   } // End of striding loop over blob velocities.
 
 } // End of Mb_mult kernel.
 
-
-__global__ void Ms_fill_zero(double * __restrict__ V, const int start_seg, const int num_segs){
-
-    // Calculates the velocities of filament segments given the forces and torques
-    // on the segments.
-
-    const int index = threadIdx.x + blockIdx.x*blockDim.x;
-    const int stride = blockDim.x*gridDim.x;
-
-    // Stay in the loop as long as any thread in the block still needs to compute velocities.
-    for (int i = (start_seg + index); i < (start_seg + num_segs); i+=stride){
-
-      const int p = 6*(i - start_seg);
-
-      V[p] += 0.0;
-      V[p + 1] += 0.0;
-      V[p + 2] += 0.0;
-      V[p + 3] += 0.0;
-      V[p + 4] += 0.0;
-      V[p + 5] += 0.0;
-
-    } // End of striding loop over filament segment velocities.
-
-  } // End of Ms_fill_zero kernel.
 __global__ void Mb_fill_zero(double * __restrict__ V, const int start_blob, const int num_blobs){
 
   // Fill zero velocity arrays
