@@ -860,6 +860,88 @@ __global__ void Mbs_mult(double * __restrict__ V, const double *const __restrict
 
 } // End of Mbs_mult kernel.
 
+
+__global__ void Ms_mult(double * __restrict__ V, const double *const __restrict__ F, const int start_seg, const int num_segs){
+
+    // Calculates the velocities of filament segments given the forces and torques
+    // on the segments.
+
+    const int index = threadIdx.x + blockIdx.x*blockDim.x;
+    const int stride = blockDim.x*gridDim.x;
+
+    const double temp = 1.0/(6.0*PI*MU*RSEG);
+    const double temp2 = 1.0/(8.0*PI*MU*RSEG*RSEG*RSEG);
+
+    // Stay in the loop as long as any thread in the block still needs to compute velocities.
+    for (int i = (start_seg + index); i < (start_seg + num_segs); i+=stride){
+
+      const int p = 6*(i - start_seg);
+
+      V[p] = temp*F[6*i];
+      V[p + 1] = temp*F[6*i + 1];
+      V[p + 2] = temp*F[6*i + 2];
+      V[p + 3] = temp2*F[6*i + 3];
+      V[p + 4] = temp2*F[6*i + 4];
+      V[p + 5] = temp2*F[6*i + 5];
+
+    } // End of striding loop over filament segment velocities.
+
+  } // End of Ms_mult kernel.
+
+
+
+__global__ void Mb_mult(double * __restrict__ V, const double *const __restrict__ F, const int start_blob, const int num_blobs){
+
+  // Calculates the velocities of rigid-body blobs given the forces they experience.
+
+  const int index = threadIdx.x + blockIdx.x*blockDim.x;
+  const int stride = blockDim.x*gridDim.x;
+
+  const double temp = 1.0/(6.0*PI*MU*RBLOB);
+
+  // Stay in the loop as long as any thread in the block still needs to compute velocities.
+  for (int i = (start_blob + index); i < (start_blob + num_blobs); i+=stride){
+
+    const int p = 3*(i - start_blob);
+
+    V[p] = temp*F[3*i];
+    V[p + 1] = temp*F[3*i + 1];
+    V[p + 2] = temp*F[3*i + 2];
+
+  } // End of striding loop over blob velocities.
+
+} // End of Mb_mult kernel.
+
+__global__ void Mb_fill_zero(double * __restrict__ V, const int start_blob, const int num_blobs){
+
+  // Fill zero velocity arrays
+
+  const int index = threadIdx.x + blockIdx.x*blockDim.x;
+  const int stride = blockDim.x*gridDim.x;
+
+  // Stay in the loop as long as any thread in the block still needs to fill zeros.
+  for (int i = (start_blob + index); i < (start_blob + num_blobs); i+=stride){
+
+    const int p = 3*(i - start_blob);
+
+    #if USE_BROYDEN_FOR_EVERYTHING
+
+      V[p] += 0.0;
+      V[p + 1] += 0.0;
+      V[p + 2] += 0.0;
+
+    #else
+
+      V[p] = 0.0;
+      V[p + 1] = 0.0;
+      V[p + 2] = 0.0;
+
+    #endif
+
+  } // End of striding loop over blob velocities.
+
+} // End of Mb_fill_zero kernel.
+
 __global__ void barrier_forces(double * __restrict__ f_segs, double * __restrict__ f_blobs_repulsion, const double *const __restrict__ x_segs, const double *const __restrict__ x_blobs, const int start_seg, const int num_segs, const int start_blob, const int num_blobs){
 
   #if !(PRESCRIBED_CILIA || NO_CILIA_SQUIRMER)
