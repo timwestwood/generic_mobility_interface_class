@@ -24,9 +24,12 @@ public:
   void evaluate_blob_blob_mobility();
   void evaluate_blob_segment_mobility();
 
+  // =============================================================================
+  // Everything unique to this derived class:
+
   ~stokesdrag_mobility_solver();
   stokesdrag_mobility_solver();
 
 }; // End of stokesdrag_mobility_solver class definition
 
-#endif // MY_RPY_MOBILITY_SOLVER_HEADER_INCLUDED
+#endif // MY_STOKESDRAG_MOBILITY_SOLVER_HEADER_INCLUDED

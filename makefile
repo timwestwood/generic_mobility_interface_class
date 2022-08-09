@@ -10,12 +10,14 @@ cilia_clean:
 	-rm cilia.exe
 	-rm cilia.exp
 	-rm cilia.lib
+	-rm cilia.pdb
 
 flow_field_clean:
 	-rm flow_field
 	-rm flow_field.exe
 	-rm flow_field.exp
 	-rm flow_field.lib
+	-rm flow_field.pdb
 
 #
 # The following work on the machines at Imperial:
@@ -39,16 +41,18 @@ cilia_nvidia4:
 flow_field_nvidia4:
 	nvcc -g $(FLOW_FIELD_CPP) $(FLOW_FIELD_CUDA) -o flow_field -O3 -llapack -lopenblas -std=c++11 -w
 
-# Basic expression works fine on HPC cluster once we've loaded the cuda module.
+# On Imperial's HPC cluster, the correct symbolic links don't seem to exist.
+# We also have to load the cuda module.
+# N.B. Call e.g. "locate liblapack.so" to check for up-to-date versions and their locations if this fails in the future.
 cilia_ic_hpc:
 	module load cuda/11.4.2 && \
-	nvcc -g $(CILIA_CPP) $(CILIA_CUDA) -o cilia -O3 -lopenblas -std=c++11 -w \
-	-L/usr/lib64 -l:liblapack.so.3.8 # There doesn't seem to be the right symbolic link on these machines to avoid having to give the version number explicitly. Call "locate liblapack.so" to check for up-to-date versions and their locations if this fails in the future.
+	nvcc -g $(CILIA_CPP) $(CILIA_CUDA) -o cilia -O3 -std=c++11 -w \
+	-L/usr/lib64 -l:liblapack.so.3.8 -l:libopenblas.so.0
 
 flow_field_ic_hpc:
 	module load cuda/11.4.2 && \
-	nvcc -g $(FLOW_FIELD_CPP) $(FLOW_FIELD_CUDA) -o flow_field -O3 -lopenblas -std=c++11 -w \
-	-L/usr/lib64 -l:liblapack.so.3.8
+	nvcc -g $(FLOW_FIELD_CPP) $(FLOW_FIELD_CUDA) -o flow_field -O3 -std=c++11 -w \
+	-L/usr/lib64 -l:liblapack.so.3.8 -l:libopenblas.so.0
 
 #
 # The following work on my personal PC. Compiling CUDA on Windows requires using the Microsoft

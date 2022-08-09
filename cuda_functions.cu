@@ -3,6 +3,8 @@
 #include "cuda_functions.hpp"
 #include "config.hpp"
 
+// RPY kernels
+
 #if INFINITE_PLANE_WALL
 
   __global__ void Mss_mult(double * __restrict__ V, const double *const __restrict__ F, const double *const __restrict__ X, const int start_seg, const int num_segs){
@@ -861,6 +863,13 @@ __global__ void Mbs_mult(double * __restrict__ V, const double *const __restrict
 } // End of Mbs_mult kernel.
 
 
+
+
+
+
+
+// Stokes drag kernels
+
 __global__ void Ms_mult(double * __restrict__ V, const double *const __restrict__ F, const int start_seg, const int num_segs){
 
     // Calculates the velocities of filament segments given the forces and torques
@@ -887,8 +896,6 @@ __global__ void Ms_mult(double * __restrict__ V, const double *const __restrict_
     } // End of striding loop over filament segment velocities.
 
   } // End of Ms_mult kernel.
-
-
 
 __global__ void Mb_mult(double * __restrict__ V, const double *const __restrict__ F, const int start_blob, const int num_blobs){
 
@@ -941,6 +948,15 @@ __global__ void Mb_fill_zero(double * __restrict__ V, const int start_blob, cons
   } // End of striding loop over blob velocities.
 
 } // End of Mb_fill_zero kernel.
+
+
+
+
+
+
+
+
+// Generic interaction kernels
 
 __global__ void barrier_forces(double * __restrict__ f_segs, double * __restrict__ f_blobs_repulsion, const double *const __restrict__ x_segs, const double *const __restrict__ x_blobs, const int start_seg, const int num_segs, const int start_blob, const int num_blobs){
 

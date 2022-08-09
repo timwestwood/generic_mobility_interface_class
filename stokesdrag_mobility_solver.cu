@@ -6,7 +6,6 @@
 #include <algorithm>
 #include "stokesdrag_mobility_solver.hpp"
 #include "cuda_functions.hpp"
-#include "swimmer.hpp"
 
 stokesdrag_mobility_solver::~stokesdrag_mobility_solver(){}
 

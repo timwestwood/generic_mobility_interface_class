@@ -5,12 +5,12 @@
 #ifndef MY_CONFIG_HEADER_INCLUDED
 #define MY_CONFIG_HEADER_INCLUDED
 
-#define SIMULATION_NAME "junk"
+#define SIMULATION_NAME "test"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Simulation type
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#define CILIA_TYPE 4
+#define CILIA_TYPE 0
 // Valid options:
 // 0 = Instability-driven cilia
 // 1 = Geometrically-switching cilia (partially implemented)
@@ -64,7 +64,7 @@
 
 #elif BODY_OR_SURFACE_TYPE==2
 
-  #define SEEDING_TYPE 1
+  #define SEEDING_TYPE 0
   // Valid options:
   // 0 = Filaments are evenly distributed over the surface.
   // 1 = Filaments are seeded in an equatorial band.
@@ -74,6 +74,11 @@
 
 // Define whether the motion of the rigid bodies is imposed or allowed to evolve dynamically.
 #define PRESCRIBED_BODY_VELOCITIES false
+
+#define MOBILITY_TYPE 1
+// Valid options:
+// 0 = Basic Stokes drag. No hydrodynamic interactions between particles.
+// 1 = Rotne-Prager-Yamakawa mobility matrices (with the corrections due to Swan and Brady if an infinite plane wall is selected).
 
 #define INITIAL_CONDITIONS_TYPE 0
 // Valid options:
@@ -187,6 +192,9 @@
 #define SADDLE_BODIES (BODY_OR_SURFACE_TYPE==1)
 #define SPHEROID_BODIES (BODY_OR_SURFACE_TYPE==2)
 #define TORUS_BODIES (BODY_OR_SURFACE_TYPE==3)
+
+#define STOKES_DRAG_MOBILITY (MOBILITY_TYPE==0)
+#define RPY_MOBILITY (MOBILITY_TYPE==1)
 
 #define USE_BROYDEN_FOR_EVERYTHING (SOLVER_TYPE==0)
 #define USE_GMRES_FOR_LINEAR_SYSTEM (SOLVER_TYPE==1)

@@ -6,7 +6,6 @@
 #include <algorithm>
 #include "rpy_mobility_solver.hpp"
 #include "cuda_functions.hpp"
-#include "swimmer.hpp"
 
 rpy_mobility_solver::~rpy_mobility_solver(){}
 

@@ -3,8 +3,16 @@
 #include <iomanip>
 #include <vector>
 #include "swimmer.hpp"
-#include "rpy_mobility_solver.hpp"
-#include "stokesdrag_mobility_solver.hpp"
+
+#if STOKES_DRAG_MOBILITY
+
+  #include "stokesdrag_mobility_solver.hpp"
+
+#elif RPY_MOBILITY
+
+  #include "rpy_mobility_solver.hpp"
+
+#endif
 
 #if !(PRESCRIBED_CILIA || NO_CILIA_SQUIRMER)
 
@@ -108,8 +116,15 @@ int main(int argc, char** argv){
   config_file.close();
 
   // Initialise the simulation
-  // rpy_mobility_solver mobility;
-  stokesdrag_mobility_solver mobility;
+  #if STOKES_DRAG_MOBILITY
+
+    stokesdrag_mobility_solver mobility;
+
+  #elif RPY_MOBILITY
+
+    rpy_mobility_solver mobility;
+
+  #endif
 
   mobility.initialise();
 
